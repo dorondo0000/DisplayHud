@@ -1,0 +1,4 @@
+name: DisplayHud
+version: '1.0-SNAPSHOT'
+main: kr.dorondo.displayHud.DisplayHud
+api-version: '1.21'
