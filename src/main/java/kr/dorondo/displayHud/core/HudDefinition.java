@@ -1,25 +1,9 @@
 package kr.dorondo.displayHud.core;
 
-import java.util.Objects;
+import org.bukkit.entity.TextDisplay;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
-/**
- * Player-agnostic HUD blueprint (template/definition).
- * Recommended to keep immutable.
- */
-public final class HudDefinition {
-
-    private final HudId hudId;
-
-    public HudDefinition(HudId hudId) {
-        this.hudId = Objects.requireNonNull(hudId, "hudId");
-    }
-
-    public HudId hudId() {
-        return hudId;
-    }
-
-    /**
-     * If you later want to store structure/element definitions, put them here
-     * as final fields (immutable), or expose read-only views.
-     */
+public record HudDefinition(HudElement element, Vector3f location, Vector3f scale, Vector3f leftRotation, Vector3f rightRotation,
+                            HudAlignment hudAlignment, TextDisplay.TextAlignment textAlignment) {
 }
