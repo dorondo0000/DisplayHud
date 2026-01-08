@@ -61,9 +61,15 @@ public abstract class DisplayHud {
         return new HashMap<>(huds);
     }
 
+    public static void removeHud(Player player,String id){
+        DisplayHud hud = getHud(player,id);
+        if (hud!=null) hud.remove();
+    }
+
     public static void clearHuds(Player player) {
         Objects.requireNonNull(player, "player");
         Map<String, DisplayHud> huds = HudRegistry.remove(player);
+        if(huds == null)return;
         huds.values().forEach(DisplayHud::remove);
     }
 
