@@ -163,6 +163,16 @@ public abstract class DisplayHud {
         PacketSender.update(player,NMSid,metadata);
     }
 
+
+    public void teleport(){
+        if(player == null) return;
+        Location location = player.getLocation().clone();
+        location.setYaw(0);
+        location.setPitch(0);
+        PacketSender.teleport(player,NMSid,location);
+    }
+
+
     public void mount() {
         if(player == null) return;
         PacketSender.mount(player,player.getEntityId(),NMSid);
@@ -187,6 +197,8 @@ public abstract class DisplayHud {
     public Display getNMSdisplay(){
         return NMSdisplay;
     }
+
+    public Integer getNMSid() {return NMSid;}
 
     public EntityType getEntityType(){
         return EntityTypes.DISPLAY;
@@ -555,6 +567,8 @@ public abstract class DisplayHud {
         public void setBackGroundColor(){ //미완
             byte FLAG = 4;
             byte flag = getNMSdisplay().getFlags();
+            //etNMSdisplay().setTextOpacity();
+            //getNMSdisplay().setLineWidth();
             //getNMSdisplay().setFlags((byte) (flag&~FLAG));
             //getNMSdisplay().getEntityData().set(TextDisplay.INITIAL_BACKGROUND, argb);
         }

@@ -4,11 +4,15 @@ import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.manager.player.PlayerManager;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
+import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetPassengers;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport;
+import com.github.retrooper.packetevents.event.PacketSendEvent;
+import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
@@ -53,6 +57,14 @@ public final class PacketSender {
         Objects.requireNonNull(player, "player");
 
         playerManager().sendPacket(player, new WrapperPlayServerDestroyEntities(entityId));
+    }
+
+    public static void teleport(Player player, int entityId,Location location) {
+        Objects.requireNonNull(player, "player");
+        Objects.requireNonNull(entityId, "entityId");
+        Objects.requireNonNull(location, "location");
+
+        playerManager().sendPacket(player, new WrapperPlayServerEntityTeleport(entityId, SpigotConversionUtil.fromBukkitLocation(location),false));
     }
 
     public static void mount(Player player, int vehicleEntityId, int... passengerEntityIds) {
