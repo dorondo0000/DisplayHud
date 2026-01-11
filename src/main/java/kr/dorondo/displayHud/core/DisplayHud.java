@@ -1,6 +1,8 @@
 package kr.dorondo.displayHud.core;
 
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
+import io.papermc.paper.adventure.PaperAdventure;
+import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.util.Brightness;
@@ -28,6 +30,7 @@ import org.bukkit.inventory.ItemStack;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+import java.lang.reflect.Method;
 import java.util.*;
 
 public abstract class DisplayHud {
@@ -80,10 +83,13 @@ public abstract class DisplayHud {
     protected Display NMSdisplay;
     protected Integer NMSid;
 
-    protected Vector3f location = new Vector3f(0f,0f,0f);
-    protected Vector3f scale = new Vector3f(1f, 1f, 1f);
+    protected Vector3f location = new Vector3f(940f,540f,0f);
+    protected Vector3f scale = new Vector3f(100f, 100f, 1f);
     protected HudAlignment alignment = HudAlignment.CENTER;
-    //사망시 재탑승 or 삭제 여부?
+
+    protected boolean removeWhenPlayerDied = false;
+
+    protected Map<String,Object> ExtraData = new java.util.concurrent.ConcurrentHashMap<>();
 
     public DisplayHud() {
         setNMSdisplay(Bukkit.getWorlds().getFirst());
@@ -128,6 +134,20 @@ public abstract class DisplayHud {
         return true;
 
 
+
+
+    }
+
+    public void respawn() {
+        PacketSender.remove(player,NMSid);
+
+        Location blocation = player.getLocation().clone();//.add(0,-4000,0); // x,z 청크 유지한채 y만 -4000으로 내려서 탑승 보강 삭제
+        blocation.setPitch(0);
+        blocation.setYaw(0);
+
+        PacketSender.spawn(player,NMSid,uuid,getEntityType(),blocation);
+        PacketSender.update(player,NMSid,SpigotConversionUtil.getEntityMetadata(getNMSdisplay().getBukkitEntity()));
+        mount();
 
 
     }
@@ -178,6 +198,13 @@ public abstract class DisplayHud {
         PacketSender.mount(player,player.getEntityId(),NMSid);
     }
 
+    public void removeWhenPlayerDied(){
+        removeWhenPlayerDied = true;
+    }
+    public void removeWhenPlayerDied(boolean toggle){
+        removeWhenPlayerDied = toggle;
+    }
+
     public Player getPlayer(){
         return this.player;
     }
@@ -202,6 +229,29 @@ public abstract class DisplayHud {
 
     public EntityType getEntityType(){
         return EntityTypes.DISPLAY;
+    }
+
+    public void setExtraData(String key, Object value) {
+        Objects.requireNonNull(key, "key");
+        if (value == null) {
+            ExtraData.remove(key);
+        } else {
+            ExtraData.put(key, value);
+        }
+    }
+    public Object getExtraData(String key) {
+        Objects.requireNonNull(key, "key");
+        return ExtraData.get(key);
+    }
+
+    public boolean hasExtraData(String key) {
+        Objects.requireNonNull(key, "key");
+        return ExtraData.containsKey(key);
+    }
+
+    public Object removeExtraData(String key) {
+        Objects.requireNonNull(key, "key");
+        return ExtraData.remove(key);
     }
 
     public void setLocation(float x,float y,float z){
@@ -280,7 +330,7 @@ public abstract class DisplayHud {
         update();
     }
     public Quaternionf getLeftRotation(){
-        return Display.createTransformation(getNMSdisplay().getEntityData()).getLeftRotation();
+        return new Quaternionf(Display.createTransformation(getNMSdisplay().getEntityData()).getLeftRotation());
     }
 
     public Vector3f getLeftRotationVector(){
@@ -308,7 +358,7 @@ public abstract class DisplayHud {
         update();
     }
     public Quaternionf getRightRotation(){
-        return Display.createTransformation(getNMSdisplay().getEntityData()).getRightRotation();
+        return new Quaternionf(Display.createTransformation(getNMSdisplay().getEntityData()).getRightRotation());
     }
 
     public Vector3f getRightRotationVector(){
@@ -435,247 +485,6 @@ public abstract class DisplayHud {
                 (float) Math.toDegrees(eulerRad.y),
                 (float) Math.toDegrees(eulerRad.z)
         );
-    }
-
-
-
-    public static final class ItemDisplayHud extends DisplayHud{
-        protected ItemDisplay NMSitemdisplay;
-
-        public ItemDisplayHud() {
-            setNMSdisplay(Bukkit.getWorlds().getFirst());
-            this.NMSid = getNMSdisplay().getId();
-        }
-
-        public void setNMSdisplay(World world){
-            NMSitemdisplay = new ItemDisplay(net.minecraft.world.entity.EntityType.ITEM_DISPLAY,((CraftWorld) world).getHandle());
-        }
-
-        public ItemDisplay getNMSdisplay(){
-            return NMSitemdisplay;
-        }
-
-        public EntityType getEntityType(){
-            return EntityTypes.ITEM_DISPLAY;
-        }
-
-        public void setItem(ItemStack itemstack){
-            getNMSdisplay().setItemStack(net.minecraft.world.item.ItemStack.fromBukkitCopy(itemstack));
-            setLocation(location);
-            update();
-        }
-
-        public ItemStack getItem(){
-            return getNMSdisplay().getItemStack().asBukkitCopy();
-        }
-
-        public void setItemTransform(ItemDisplayTransform transform){
-            setItemTransform(transform.name());
-        }
-
-        public void setItemTransform(String string){
-            getNMSdisplay().setItemTransform(ItemDisplayContext.valueOf(string));
-            update();
-        }
-
-        //get
-
-        @Override
-        public Vector3f getLocationVector(){
-            Vector3f scale = new Vector3f(this.scale);
-            double offsetX = 0;
-            double offsetY = 0;
-            double offsetZ = 0;
-            if(getItem().getType().isBlock()){
-                offsetZ += scale.z/2;
-            }
-            else{
-                offsetZ += scale.z/32;
-            }
-            double UnitX = DisplayHudManager.unitX;
-            double UnitY = DisplayHudManager.unitY;
-            double ScreenX = DisplayHudManager.screenX;
-            double ScreenY = DisplayHudManager.screenY;
-            Integer AlignmentGap = DisplayHudManager.alignmentGap;
-            double newX = ( (ScreenX/2) - location.x - offsetX) * UnitX;
-            double newY = -1.5*AlignmentGap -0.178+(((ScreenY/2)-(location.y)-offsetY)*UnitY);
-            double newZ = (UnitX*offsetZ)-((location.z)*100);
-            return new Vector3f((float) newX,(float) newY,(float) newZ);
-        }
-    }
-
-    public static final class TextDisplayHud extends DisplayHud{
-        protected TextDisplay NMStextdisplay;
-        protected TextAlignment textAlignment = TextAlignment.CENTER;
-
-        public TextDisplayHud() {
-            setNMSdisplay(Bukkit.getWorlds().getFirst());
-            this.NMSid = getNMSdisplay().getId();
-        }
-
-        public void setNMSdisplay(World world){
-            NMStextdisplay = new TextDisplay(net.minecraft.world.entity.EntityType.TEXT_DISPLAY,((CraftWorld) world).getHandle());
-        }
-
-        public TextDisplay getNMSdisplay(){
-            return NMStextdisplay;
-        }
-
-        public EntityType getEntityType(){
-            return EntityTypes.TEXT_DISPLAY;
-        }
-
-        public void setText(String text){
-            String string = " ".repeat(200) + "\n";//첫번째줄 폰트 고정해야할느낌? 항상 균일하게보이려면
-            string += text;
-            getNMSdisplay().setText(net.minecraft.network.chat.Component.literal(string));
-            setLocation(location);
-            update();
-        }
-
-        public String getText(){
-            return getNMSdisplay().getText().getString();
-        }
-
-        public void setShadowToggle(boolean toggle){
-            byte FLAG = 1;
-            byte flag = getNMSdisplay().getFlags();
-            getNMSdisplay().setFlags((byte) (toggle? (flag|FLAG) : (flag&~FLAG)));
-            update();
-        }
-        /*
-        public void setSeeThroughToggle(boolean toggle){
-            byte FLAG = 2;
-            byte flag = getNMSdisplay().getFlags();
-            getNMSdisplay().setFlags((byte) (toggle? (flag|FLAG) : (flag&~FLAG)));
-        }*/
-
-        public void setTextAlignment(TextAlignment textAlignment){
-            byte FLAG_ALIGN_LEFT = 8;
-            byte FLAG_ALIGN_RIGHT = 16;
-            byte flag = getNMSdisplay().getFlags();
-            flag &= ~(FLAG_ALIGN_LEFT | FLAG_ALIGN_RIGHT);
-            switch (textAlignment) {
-                case LEFT  -> flag |= FLAG_ALIGN_LEFT;
-                case RIGHT -> flag |= FLAG_ALIGN_RIGHT;
-            }
-            getNMSdisplay().setFlags(flag);
-            this.textAlignment = textAlignment;
-            update();
-        }
-
-        public void setBackGroundColor(){ //미완
-            byte FLAG = 4;
-            byte flag = getNMSdisplay().getFlags();
-            //etNMSdisplay().setTextOpacity();
-            //getNMSdisplay().setLineWidth();
-            //getNMSdisplay().setFlags((byte) (flag&~FLAG));
-            //getNMSdisplay().getEntityData().set(TextDisplay.INITIAL_BACKGROUND, argb);
-        }
-
-        public void setLineWidth(){ //미완
-            //getNMSdisplay().setLineWidth()
-        }
-
-        public void setTextOpacity(int n){
-            getNMSdisplay().setTextOpacity((byte) n);
-            update();
-        }
-
-        @Override
-        public void setLeftRotation(Vector3f vector,Integer time) {
-            vector.add(0,180,0);
-            Quaternionf quat = vecToQuat(vector);
-            Transformation tf = Display.createTransformation(getNMSdisplay().getEntityData());
-            tf = new Transformation(tf.getTranslation(),quat,tf.getScale(),tf.getRightRotation());
-            getNMSdisplay().setTransformation(tf);
-            getNMSdisplay().setTransformationInterpolationDelay(0);
-            getNMSdisplay().setTransformationInterpolationDuration(time);
-            update();
-        }
-
-        public Vector3f getLocationVector(){
-            Vector3f scale = new Vector3f(this.scale);
-            double offsetX = 0;
-            double offsetY = 0;
-            double offsetZ = 0;
-
-            String text = getText();
-            offsetY -= scale.y/2;
-            int lines = countLinesNl(text);
-            offsetY += ((scale.y / 4.0) * (lines - 1.5));
-            int lineWidth = getNMSdisplay().getLineWidth();
-            switch(textAlignment){
-                case LEFT -> offsetX = (scale.x)*(((lineWidth)*0.0125) - 0.5);
-                case RIGHT -> offsetX = (scale.x)*(((lineWidth)*-0.0125) - 0.55);
-                case CENTER -> scale.x = 0;
-            }
-            offsetX += scale.x/2;
-            offsetY += scale.y/2;
-
-            double UnitX = DisplayHudManager.unitX;
-            double UnitY = DisplayHudManager.unitY;
-            double ScreenX = DisplayHudManager.screenX;
-            double ScreenY = DisplayHudManager.screenY;
-            Integer AlignmentGap = DisplayHudManager.alignmentGap;
-            double newX = ( (ScreenX/2) - location.x - offsetX) * UnitX;
-            double newY = -1.5*AlignmentGap -0.178+(((ScreenY/2)-(location.y)-offsetY)*UnitY);
-            double newZ = (UnitX*offsetZ)-((location.z)*100);
-            return new Vector3f((float) newX,(float) newY,(float) newZ);
-        }
-
-        private static int countLinesNl(String s) {
-            return (s == null || s.isEmpty()) ? 1 : s.split("\n").length;
-        }
-    }
-
-    public static final class BlockDisplayHud extends DisplayHud{
-        protected BlockDisplay NMSblockdisplay;
-
-        public BlockDisplayHud() {
-            setNMSdisplay(Bukkit.getWorlds().getFirst());
-            this.NMSid = getNMSdisplay().getId();
-        }
-
-        public void setNMSdisplay(World world){
-            NMSblockdisplay = new BlockDisplay(net.minecraft.world.entity.EntityType.BLOCK_DISPLAY,((CraftWorld) world).getHandle());
-        }
-
-        public BlockDisplay getNMSdisplay(){
-            return NMSblockdisplay;
-        }
-
-        public EntityType getEntityType(){
-            return EntityTypes.BLOCK_DISPLAY;
-        }
-
-        public void setBlock(BlockState blockstate){
-            getNMSdisplay().setBlockState((net.minecraft.world.level.block.state.BlockState) blockstate);
-            update();
-        }
-
-        public BlockState getBlock(){
-            return (BlockState) getNMSdisplay().getBlockState();
-        }
-        //get
-
-        @Override
-        public Vector3f getLocationVector(){
-            Vector3f scale = new Vector3f(this.scale);
-            double offsetX = 0;
-            double offsetY = 0;
-            double offsetZ = 0;
-            offsetZ += scale.z/2; //block
-            double UnitX = DisplayHudManager.unitX;
-            double UnitY = DisplayHudManager.unitY;
-            double ScreenX = DisplayHudManager.screenX;
-            double ScreenY = DisplayHudManager.screenY;
-            Integer AlignmentGap = DisplayHudManager.alignmentGap;
-            double newX = ( (ScreenX/2) - location.x - offsetX) * UnitX;
-            double newY = -1.5*AlignmentGap -0.178+(((ScreenY/2)-(location.y)-offsetY)*UnitY);
-            double newZ = (UnitX*offsetZ)-((location.z)*100);
-            return new Vector3f((float) newX,(float) newY,(float) newZ);
-        }
     }
 
 }

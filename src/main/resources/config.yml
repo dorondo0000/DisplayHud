@@ -1,0 +1,14 @@
+settings:
+  #If you want to change these values,
+  #you need to change the values in the hud.glsl of the resource pack the same
+  unit-x: 100
+  unit-y: 100
+  screen-x: 1920
+  screen-y: 1080
+  alignment-gap: 1000000
+
+customize:
+  #When this option is enabled, plugin receives bucket events and automatically handles updates for a specific situation
+  #(teleport, respawn, world change, etc.),
+  #if you disable this option, you must implement it yourself.
+  bukkit-event-listener: true
